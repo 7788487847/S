@@ -1,1 +1,0 @@
-import{auditLogs}from"@/db/schema";import{getDb}from"@/lib/db";export async function logAudit(actor:string,targetType:string,targetId:number,action:string,detail?:string){await(await getDb()).insert(auditLogs).values({actor,targetType,targetId,action,detail:detail||null})}
