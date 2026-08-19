@@ -11,17 +11,53 @@ export default function Page() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const update = (values: Partial<typeof form>) => setForm(current => ({ ...current, ...values }));
-  async function submit(event: React.FormEvent) {
+   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!form.role) return setMessage("请选择你的身份");
     setBusy(true);
     try {
+      // 1. 调用注册接口，创建账号并生成激活链接
       const response = await fetch("/api/auth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(form) });
       const text = await response.text();
       const result: { message?: string; error?: string; activationUrl?: string } = text ? JSON.parse(text) : {};
-      setMessage(`${result.message || result.error || (response.ok ? "注册成功" : "注册失败，请稍后再试")}${result.activationUrl ? `：${result.activationUrl}` : ""}`);
-    } catch { setMessage("注册失败，请检查网络后重试"); }
-    finally { setBusy(false); }
+
+      // 注册失败，直接提示错误
+      if (!response.ok || result.error) {
+        setMessage(result.message || result.error || "注册失败，请稍后再试");
+        return;
+      }
+
+      // 2. 注册成功，调用发邮件接口发送激活邮件
+      if (result.activationUrl) {
+        try {
+          const emailRes = await fetch("/api/send-activate-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: form.email,
+              nickname: form.displayName,
+              activateLink: result.activationUrl,
+            }),
+          });
+          const emailResult = await emailRes.json();
+          if (emailResult.success) {
+            setMessage("注册成功，激活邮件已发送到你的邮箱，请查收");
+          } else {
+            setMessage(`注册成功，但邮件发送失败：${emailResult.message || "未知错误"}，你可以点击下方按钮重新发送`);
+          }
+        } catch {
+          setMessage("注册成功，但邮件发送失败，请点击下方按钮重新发送");
+        }
+      } else {
+        setMessage(result.message || "注册成功");
+      }
+    } catch {
+      setMessage("注册失败，请检查网络后重试");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   }
   async function resend() {
     setBusy(true);
