@@ -23,13 +23,16 @@ async function init(): Promise<Db> {
     return drizzleNodePg(url, { schema });
   }
 
-  const dir = process.env.NODE_ENV === "production" ? "/data/pg" : "./data/pg";
+  // Vercel 没有持久化磁盘，正式环境必须连接托管 PostgreSQL。
+  if (process.env.VERCEL || process.env.NODE_ENV === "production") {
+    throw new Error("DATABASE_URL_NOT_CONFIGURED");
+  }
+
+  const dir = "./data/pg";
   try {
     return await openLocalDatabase(dir);
   } catch (error) {
-    // 开发沙箱可能因进程中断留下损坏的 WASM 数据文件。仅开发环境隔离坏库并
-    // 重新执行版本化迁移；生产环境必须保留原数据并直接暴露错误，禁止自动清库。
-    if (process.env.NODE_ENV === "production") throw error;
+    // 此分支只会在开发环境进入；隔离损坏的本地数据库后重新执行版本化迁移。
     const backup = `./data/pg-corrupt-${Date.now()}`;
     console.warn(`开发数据库无法打开，已隔离到 ${backup} 并重建。`, error);
     await rename(dir, backup).catch(() => undefined);
