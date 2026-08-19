@@ -1,0 +1,111 @@
+"use client";
+
+import { use, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import ReportButton from "@/components/ReportButton";
+import CommissionInquiry from "@/components/CommissionInquiry";
+import FadeImage from "@/components/FadeImage";
+import { getArtworkDisplay, getArtworkOriginal } from "@/lib/image";
+
+type Data = {
+  artwork: {
+    id: number;
+    title: string;
+    imageUrl: string;
+    thumbnailUrl?: string | null;
+    displayUrl?: string | null;
+    images?: string;
+    tags: string;
+    description: string | null;
+    userId: number;
+    artistName: string;
+    commissionStatus?: number;
+    miyousheUrl?: string; weiboUrl?: string; bilibiliUrl?: string; xiaohongshuUrl?: string; douyinUrl?: string; pixivUrl?: string; twitterUrl?: string; websiteUrl?: string;
+    viewCount: number;
+    favoriteCount: number;
+    originalUrl?: string | null;
+    imageVariants?: string;
+    likeCount: number;
+  };
+  favorited?: boolean;
+  liked?: boolean;
+  siblings: { id: number }[];
+};
+
+export default function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const router = useRouter();
+  const [data, setData] = useState<Data | null>(null);
+
+  useEffect(() => {
+    if (!/^\d+$/.test(id)) return;
+    const token = localStorage.getItem("palette_token");
+    fetch(`/api/artworks/${id}/view`, { method: "POST", headers: token ? { authorization: `Bearer ${token}` } : {} }).catch(() => undefined);
+    fetch(`/api/artworks/${id}`, { headers: token ? { authorization: `Bearer ${token}` } : {} })
+      .then((response) => (response.ok ? response.json() : null))
+      .then(setData);
+  }, [id]);
+
+  if (!data) return <p className="p-20 text-center">作品不存在或加载中…</p>;
+
+  const displayImage = getArtworkDisplay(data.artwork);
+  let images = [displayImage];
+  try {
+    images = JSON.parse(data.artwork.images || "[]");
+    if (!images.length) images = [displayImage];
+  } catch {}
+
+  return (
+    <>
+      <Header />
+      <main className="mx-auto max-w-7xl px-5 py-8">
+        <button
+          onClick={() => router.back()}
+          className="mb-6 rounded-full border border-stone-200 px-4 py-2 text-sm text-stone-600 hover:bg-white"
+        >
+          {"< 返回画廊"}
+        </button>
+        <div className="grid gap-8 lg:grid-cols-[1fr_350px]">
+          <div
+            className="space-y-4 rounded-3xl bg-stone-900 p-5"
+            onContextMenu={() => alert("喜欢就联系原作者吧 ✦")}
+          >
+            {images.map((image) => (
+              <FadeImage
+                key={image}
+                src={image}
+                width={1400}
+                height={1400}
+                alt={data.artwork.title}
+                className="mx-auto max-h-[80vh] w-auto object-contain"
+              />
+            ))}
+          </div>
+          <aside>
+            <h1 className="text-3xl font-bold">{data.artwork.title}</h1>
+            <p className="mt-4 text-orange-600">{data.artwork.tags}</p>
+            <p className="mt-4 text-sm text-stone-500">👁 {data.artwork.viewCount} 次浏览 · ♥ {data.artwork.favoriteCount} 人收藏</p>
+            <button className="mt-5 mr-2 rounded-full border px-4 py-2 text-sm" onClick={async()=>{const token=localStorage.getItem("palette_token")||"",response=await fetch(`/api/artworks/${id}/like`,{method:"POST",headers:{authorization:`Bearer ${token}`}}),result=await response.json();if(!response.ok)return alert(result.error||"点赞失败");setData(current=>current?{...current,liked:result.liked,artwork:{...current.artwork,likeCount:result.likeCount}}:current)}}>{data.liked?"♥ 已喜欢":"♡ 喜欢"} · {data.artwork.likeCount}</button>
+            <button className="mt-5 rounded-full border px-4 py-2 text-sm" onClick={async () => {
+              const token = localStorage.getItem("palette_token") || "";
+              const response = await fetch(`/api/artworks/${id}/favorite`, { method: "POST", headers: { authorization: `Bearer ${token}` } });
+              const result = await response.json();
+              if (!response.ok) return alert(result.error || "收藏失败");
+              setData(current => current ? { ...current, favorited: result.favorited, artwork: { ...current.artwork, favoriteCount: result.favoriteCount } } : current);
+            }}>{data.favorited ? "♥ 已收藏" : "♡ 收藏作品"}</button>
+            {getArtworkOriginal(data.artwork) && <a href={getArtworkOriginal(data.artwork)} className="btn mt-5 inline-block" download>下载原图</a>}
+            <div className="mt-5"><CommissionInquiry artistId={data.artwork.userId} open={data.artwork.commissionStatus===1} contacts={[["米游社",data.artwork.miyousheUrl],["微博",data.artwork.weiboUrl],["B站",data.artwork.bilibiliUrl],["小红书",data.artwork.xiaohongshuUrl],["抖音",data.artwork.douyinUrl],["Pixiv",data.artwork.pixivUrl],["Twitter",data.artwork.twitterUrl],["个人网站",data.artwork.websiteUrl]].filter((item): item is [string,string] => !!item[1]).map(([label,url]) => ({label,url}))}/></div>
+            <Link href={`/u/${data.artwork.userId}`} className="mt-8 block">
+              查看 {data.artwork.artistName} 的主页 →
+            </Link>
+            <div className="mt-5"><ReportButton type="artwork" id={data.artwork.id} /></div>
+          </aside>
+        </div>
+      </main>
+      <Footer />
+    </>
+  );
+}
