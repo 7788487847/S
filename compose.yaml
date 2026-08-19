@@ -1,0 +1,23 @@
+services:
+  web:
+    build: .
+    labels:
+      - "luffy.entrypoint=true"
+      - "luffy.port=3000"
+      - "luffy.database=postgres"
+    environment:
+      DATABASE_URL: ""
+      NODE_ENV: "production"
+      JWT_SECRET: ${JWT_SECRET}
+      PERSONAL_DATA_SECRET: ${PERSONAL_DATA_SECRET}
+      ADMIN_SECRET: ${ADMIN_SECRET}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      RESEND_API_KEY: ${RESEND_API_TOKEN}
+      SHOW_DEV_LINKS: ${SHOW_DEV_LINKS:-false}
+      UPLOAD_DIR: ${UPLOAD_DIR:-/data/uploads}
+    volumes:
+      - data:/data
+volumes:
+  data:
+    name: ${slug}-data
