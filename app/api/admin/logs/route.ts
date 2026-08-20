@@ -1,2 +1,0 @@
-import { adminApiError } from "@/lib/api-error";
-import{NextRequest,NextResponse}from"next/server";import{desc}from"drizzle-orm";import{auditLogs}from"@/db/schema";import{getDb}from"@/lib/db";import{requireAdmin}from"@/lib/admin-auth";export async function GET(r:NextRequest){try{await requireAdmin(r);return NextResponse.json(await(await getDb()).select().from(auditLogs).orderBy(desc(auditLogs.createdAt)).limit(200))}catch(error){return adminApiError(error,"admin-logs-list")}}

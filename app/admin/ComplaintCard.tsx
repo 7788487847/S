@@ -1,1 +1,0 @@
-export default function ComplaintCard({item}:{item:Record<string,unknown>}){return <><b>投诉人：{String(item.name)}</b><p>链接：{String(item.targetUrls)}</p><p>权属：{String(item.ownershipProof)}</p><p>说明：{String(item.description)}</p></>}
