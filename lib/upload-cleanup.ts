@@ -1,0 +1,15 @@
+import { readdir, stat, unlink } from "node:fs/promises";
+import path from "node:path";
+import { artworks, verificationApplications } from "@/db/schema";
+import { getDb } from "@/lib/db";
+
+const localUploadRoot = path.join(/* turbopackIgnore: true */ process.cwd(), "data", "uploads");
+const uploadRoot = () => process.env.UPLOAD_DIR?.trim() || localUploadRoot;
+const safeName = (name: string) => /^[a-zA-Z0-9.-]+$/.test(name);
+const filePath = (name: string) => path.join(/* turbopackIgnore: true */ uploadRoot(), name);
+
+export function namesFromUrls(values: unknown[]) { return values.map(value => String(value).split("/").pop()?.split("?")[0] || "").filter(safeName); }
+export async function usedUploadNames() { const db=await getDb(),rows=await db.select({imageUrl:artworks.imageUrl,thumbnailUrl:artworks.thumbnailUrl,displayUrl:artworks.displayUrl,originalUrl:artworks.originalUrl,images:artworks.images,imageVariants:artworks.imageVariants}).from(artworks),applications=await db.select({images:verificationApplications.representativeImages}).from(verificationApplications),names=new Set<string>();for(const row of rows){const values:unknown[]=[row.imageUrl,row.thumbnailUrl,row.displayUrl,row.originalUrl];for(const raw of [row.images,row.imageVariants])try{const parsed=JSON.parse(raw||"[]");if(Array.isArray(parsed))for(const item of parsed){if(item&&typeof item==="object")values.push(...Object.values(item));else values.push(item)}}catch{}for(const name of namesFromUrls(values))names.add(name)}for(const application of applications)try{const parsed=JSON.parse(application.images||"[]");if(Array.isArray(parsed))for(const name of namesFromUrls(parsed))names.add(name)}catch{}return names }
+export async function removeUnused(names:string[]){const used=await usedUploadNames(),safe=[...new Set(names)].filter(name=>safeName(name)&&!used.has(name));await Promise.all(safe.map(name=>unlink(filePath(name)).catch(()=>undefined)));return safe.length}
+export async function cleanupExpiredUploads(maxAgeMs=24*60*60*1000){let entries:string[]=[];try{entries=await readdir(uploadRoot())}catch{return 0}const used=await usedUploadNames(),cutoff=Date.now()-maxAgeMs,candidates:string[]=[];for(const name of entries){if(used.has(name)||!safeName(name))continue;try{if((await stat(filePath(name))).mtimeMs<cutoff)candidates.push(name)}catch{}}return removeUnused(candidates)}
+export async function uploadStorageBytes(){let entries:string[]=[];try{entries=await readdir(uploadRoot())}catch{return 0}let total=0;for(const name of entries)try{if(safeName(name))total+=(await stat(filePath(name))).size}catch{}return total}
