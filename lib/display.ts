@@ -1,0 +1,1 @@
+import{pinyin}from"pinyin-pro";export function displayInitial(name?:string|null){const first=(name||"灵").trim().charAt(0);if(!first)return"L";const letter=pinyin(first,{pattern:"first",toneType:"none"}).charAt(0);return(letter||first).toUpperCase()}
