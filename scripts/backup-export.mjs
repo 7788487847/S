@@ -1,0 +1,12 @@
+import { mkdir, cp, writeFile } from "node:fs/promises";
+import { spawn } from "node:child_process";
+import path from "node:path";
+const target=process.env.BACKUP_TARGET_DIR;
+if(!target)throw new Error("BACKUP_TARGET_DIR must point to storage outside the application data volume");
+const stamp=new Date().toISOString().replace(/[:.]/g,"-");
+const out=path.join(target,stamp);await mkdir(out,{recursive:true});
+if(process.env.DATABASE_URL?.startsWith("postgres"))await new Promise((resolve,reject)=>{const child=spawn("pg_dump",[process.env.DATABASE_URL,"--format=custom","--file",path.join(out,"database.dump")],{stdio:"inherit"});child.on("exit",code=>code===0?resolve():reject(new Error(`pg_dump exited ${code}`)))});
+else await cp(path.resolve("data/pg"),path.join(out,"database-pglite"),{recursive:true});
+const uploads=process.env.UPLOAD_DIR||path.resolve("data/uploads");await cp(uploads,path.join(out,"uploads"),{recursive:true,force:true});
+await writeFile(path.join(out,"backup.json"),JSON.stringify({createdAt:new Date().toISOString(),source:"lingxi",restore:"Restore database.dump with pg_restore and copy uploads to UPLOAD_DIR."},null,2));
+console.log(`Backup exported to ${out}`);
