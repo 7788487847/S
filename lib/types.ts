@@ -1,1 +1,0 @@
-export type PublicArtist={id:number;username:string|null;displayName:string;avatarUrl:string|null;bio:string|null;isVerified:boolean};export type PublicArtwork={id:number;title:string;imageUrl:string;images:string;tags:string;userId:number;artistName:string};
