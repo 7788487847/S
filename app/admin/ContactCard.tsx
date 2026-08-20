@@ -1,1 +1,0 @@
-export default function ContactCard({item}:{item:Record<string,unknown>}){return <><b>{String(item.displayName)} 的留言</b><p className="mt-2 whitespace-pre-wrap">{String(item.message)}</p><small>{String(item.createdAt)}</small>{item.adminReply&&<div className="mt-3 rounded-xl bg-green-50 p-3"><b>已回复：</b>{String(item.adminReply)}</div>}</>}
