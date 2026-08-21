@@ -1,1 +1,0 @@
-export default function AdminLogCard({item}:{item:Record<string,unknown>}){return <><b>{String(item.action)}</b><p>{String(item.actor)} → {String(item.targetType)} #{String(item.targetId)}</p><small>{String(item.createdAt)}</small></>}
