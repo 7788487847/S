@@ -1,1 +1,0 @@
-export default function ReportCard({item}:{item:Record<string,unknown>}){return <><b>{String(item.reason)}</b><p>{String(item.targetType)} #{String(item.targetId)}</p><p>{String(item.description||"")}</p></>}
