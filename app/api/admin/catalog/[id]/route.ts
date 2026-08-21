@@ -1,0 +1,8 @@
+import { NextRequest,NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
+import { artworks,auditLogs,notifications } from "@/db/schema";
+import { getDb } from "@/lib/db";
+import { requireAdmin } from "@/lib/admin-auth";
+import { adminApiError } from "@/lib/api-error";
+import { removeArtworkFiles } from "@/lib/artwork-storage";
+export async function PATCH(request:NextRequest,{params}:{params:Promise<{id:string}>}){try{await requireAdmin(request);const{id}=await params,body=await request.json(),action=String(body.action||""),db=await getDb(),[work]=await db.select().from(artworks).where(eq(artworks.id,Number(id)));if(!work)return NextResponse.json({error:"作品不存在"},{status:404});if(action==="hide"){await db.update(artworks).set({status:2}).where(eq(artworks.id,work.id));await db.insert(auditLogs).values({actor:"admin",targetType:"artwork",targetId:work.id,action:"manual-hide",detail:String(body.reason||"站长主动下架")});await db.insert(notifications).values({userId:work.userId,type:"moderation",title:"作品已被站长下架",body:String(body.reason||"作品不符合平台规范"),targetUrl:"/dashboard"});return NextResponse.json({ok:true,message:"作品已下架，图片已保留以便复核"})}if(action==="delete"){await db.delete(artworks).where(eq(artworks.id,work.id));await removeArtworkFiles(work);await db.insert(auditLogs).values({actor:"admin",targetType:"artwork",targetId:work.id,action:"manual-delete",detail:String(body.reason||"站长主动删除")});await db.insert(notifications).values({userId:work.userId,type:"moderation",title:"作品已被站长删除",body:String(body.reason||"作品不符合平台规范") ,targetUrl:"/dashboard"});return NextResponse.json({ok:true,message:"作品和全部图片已删除"})}return NextResponse.json({error:"无效操作"},{status:400})}catch(error){return adminApiError(error,"admin-catalog-action")}}
